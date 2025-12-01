@@ -1,0 +1,92 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openai-batch-wrapper"
+version = "0.1.0"
+description = "Transparent cache and batch support wrapper for OpenAI API"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    { name = "Visual Language Team" }
+]
+keywords = [
+    "openai",
+    "batch",
+    "cache",
+    "api",
+    "wrapper",
+    "llm",
+    "gpt"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "openai>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ultragtx/openai-batch-wrapper"
+Documentation = "https://github.com/ultragtx/openai-batch-wrapper#readme"
+Repository = "https://github.com/ultragtx/openai-batch-wrapper"
+Issues = "https://github.com/ultragtx/openai-batch-wrapper/issues"
+
+[project.scripts]
+batch-prepare = "openai_batch_wrapper.cli.prepare:main"
+batch-upload = "openai_batch_wrapper.cli.upload:main"
+batch-download = "openai_batch_wrapper.cli.download:main"
+batch-to-cache = "openai_batch_wrapper.cli.to_cache:main"
+batch-status = "openai_batch_wrapper.cli.status:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openai_batch_wrapper"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/README.md",
+    "/LICENSE",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

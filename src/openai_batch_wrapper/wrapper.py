@@ -12,6 +12,7 @@ The wrapper is transparent - existing code doesn't need modification.
 import os
 import json
 import asyncio
+import inspect
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
@@ -72,6 +73,23 @@ class WrappedChatCompletions:
         self.queue_mgr = queue_mgr
         self.model = model
         self.semaphore = semaphore
+        
+        # Get valid API parameters from the original parse method signature
+        self._api_param_names = self._get_api_param_names()
+    
+    def _get_api_param_names(self) -> set:
+        """Extract parameter names from the original parse method."""
+        try:
+            sig = inspect.signature(self._original.parse)
+            # Get all parameter names except 'self' and 'kwargs'
+            param_names = {
+                name for name, param in sig.parameters.items()
+                if name not in ('self', 'kwargs')
+            }
+            return param_names
+        except (AttributeError, ValueError):
+            # Fallback to empty set if inspection fails
+            return set()
     
     async def parse(
         self,
@@ -108,8 +126,19 @@ class WrappedChatCompletions:
             except (AttributeError, TypeError):
                 response_format_dict = None
         
+        # Separate API parameters from metadata parameters
+        # Use the actual parse method signature to determine valid API params
+        api_params = {}
+        metadata_params = {}
+        
+        for key, value in kwargs.items():
+            if key in self._api_param_names:
+                api_params[key] = value
+            else:
+                metadata_params[key] = value
+        
         # Extract reasoning_effort for hashing if present
-        reasoning_effort = kwargs.get("reasoning_effort")
+        reasoning_effort = api_params.get("reasoning_effort")
         
         # Compute request hash
         request_hash = self.cache_mgr.compute_request_hash(
@@ -126,7 +155,7 @@ class WrappedChatCompletions:
                 print(f"[Cache] Hit for hash {request_hash[:8]}...")
                 return self._build_response_from_cache(cached_response, response_format_class)
             
-            # Call actual API with concurrency limit
+            # Call actual API with concurrency limit (only forward API parameters)
             if self.semaphore is not None:
                 async with self.semaphore:
                     resp = await self._original.parse(
@@ -135,7 +164,7 @@ class WrappedChatCompletions:
                         temperature=temperature,
                         max_completion_tokens=max_completion_tokens,
                         response_format=response_format,
-                        **kwargs
+                        **api_params
                     )
             else:
                 resp = await self._original.parse(
@@ -144,7 +173,7 @@ class WrappedChatCompletions:
                     temperature=temperature,
                     max_completion_tokens=max_completion_tokens,
                     response_format=response_format,
-                    **kwargs
+                    **api_params
                 )
             
             # Save to cache
@@ -166,10 +195,11 @@ class WrappedChatCompletions:
                 print(f"[Cache] Hit for hash {request_hash[:8]}...")
                 return self._build_response_from_cache(cached_response, response_format_class)
             
-            # Add to batch queue
+            # Add to batch queue (merge API params and metadata params)
+            all_params = {**api_params, **metadata_params}
             self.queue_mgr.add_request(
                 request_hash, messages, model, temperature, max_completion_tokens,
-                response_format=response_format_dict, **kwargs
+                response_format=response_format_dict, **all_params
             )
             print(f"[Batch] Queued request {request_hash[:8]}...")
             
@@ -182,10 +212,11 @@ class WrappedChatCompletions:
                 print(f"[Cache] Hit for hash {request_hash[:8]}...")
                 return self._build_response_from_cache(cached_response, response_format_class)
             
-            # No cache, add to queue and raise error
+            # No cache, add to queue and raise error (merge API params and metadata params)
+            all_params = {**api_params, **metadata_params}
             self.queue_mgr.add_request(
                 request_hash, messages, model, temperature, max_completion_tokens,
-                response_format=response_format_dict, **kwargs
+                response_format=response_format_dict, **all_params
             )
             print(f"[Cache] Miss for hash {request_hash[:8]}, queued for batch")
             

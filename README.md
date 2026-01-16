@@ -7,7 +7,7 @@ A transparent wrapper for the OpenAI Python client that adds caching and batch A
 - 🚀 **Drop-in Replacement**: Works exactly like `AsyncOpenAI` - no code changes needed
 - 💾 **Automatic Caching**: Responses are cached to avoid duplicate API calls
 - 📦 **Batch API Support**: Queue requests for OpenAI's 50% cheaper Batch API
-- 🔄 **Three Operation Modes**: `realtime`, `batch_write`, `cache_first`
+- 🔄 **Three Operation Modes**: `realtime`, `cache_first`, `batch_write`
 - 🛠️ **CLI Tools**: Complete workflow management via command line
 - 🔌 **Extensible**: Provider adapter interface for future multi-provider support
 
@@ -27,12 +27,13 @@ pip install -e .
 
 ## Quick Start
 
-### Basic Usage (Realtime with Caching)
+### Basic Usage (Cache First)
 
 ```python
 from openai_batch_wrapper import create_wrapped_client
 
 # Create client - drop-in replacement for AsyncOpenAI
+# Default mode is 'cache_first' - checks cache before calling API
 client = create_wrapped_client(
     api_key="sk-...",
     model="gpt-4o"
@@ -89,20 +90,21 @@ MODE=cache_first python your_pipeline.py
 
 ## Operation Modes
 
-### `realtime` (default)
-- Calls API immediately
-- Caches responses automatically
-- Returns cached response if available
+### `cache_first` (default)
+- Checks cache first, returns cached response if available
+- Calls API on cache miss and saves response to cache
+- Best for development and iterative workflows
+
+### `realtime`
+- Always calls API (ignores cache)
+- Saves all responses to cache for future use
+- Use when you need fresh responses every time
 
 ### `batch_write`
-- Queues requests for batch processing
-- Returns cached response if available
-- Raises `RuntimeError("REQUEST_QUEUED: {hash}")` for new requests
-
-### `cache_first`
-- Only uses cached responses
-- Queues cache misses for batch processing
-- Raises `RuntimeError("CACHE_MISS: {hash}")` for uncached requests
+- Checks cache first, returns cached response if available
+- Queues uncached requests for batch processing
+- Raises `RuntimeError("REQUEST_QUEUED: {hash}")` for queued requests
+- Use for large workloads to save 50% on costs
 
 ## CLI Commands
 
@@ -118,7 +120,7 @@ MODE=cache_first python your_pipeline.py
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MODE` | `realtime` | Operation mode |
+| `MODE` | `cache_first` | Operation mode |
 | `OPENAI_API_KEY` | - | OpenAI API key |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | API base URL |
 | `CACHE_DIR` | `.cache` | Cache directory |
@@ -132,7 +134,7 @@ MODE=cache_first python your_pipeline.py
 def create_wrapped_client(
     api_key: str = None,
     base_url: str = None,
-    mode: str = None,          # "realtime", "batch_write", "cache_first"
+    mode: str = None,          # "cache_first" (default), "realtime", "batch_write"
     cache_dir: str = ".cache",
     task_name: str = None,     # Auto-generated if None
     model: str = "",           # For task info

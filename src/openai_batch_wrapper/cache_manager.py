@@ -91,13 +91,16 @@ class CacheManager:
         # Normalize messages (replace images with placeholders)
         normalized_messages = self._normalize_messages(messages)
         
+        # Filter out None values from kwargs for backward compatibility
+        filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        
         # Create hashable representation
         hash_data = {
             "messages": normalized_messages,
             "model": model,
             "temperature": temperature,
             "max_completion_tokens": max_completion_tokens,
-            **kwargs
+            **filtered_kwargs
         }
         
         # Compute hash
